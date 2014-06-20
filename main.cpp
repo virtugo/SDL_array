@@ -11,8 +11,8 @@
 #define SIZEY 10
 #define BLOCKSIZE 25 // размер блока
 
-int FillArray(int, int, int**, int*, int*); // заполняем массив
-int PlusArray(int, int, int**, int); // увеличиваем массив
+int FillArray(int, int, int**, int*, int*, int*); // заполняем массив
+int PlusArray(int, int, int**, int, int*); // увеличиваем массив
 int DynamicToStatic(int (*)[SIZEY], int, int, int**);
 int DrawScreen(int (*)[SIZEY]);
 int DrawBlock(int, int, int);
@@ -42,6 +42,7 @@ int main( int argc, char* args[] )
 	int heroX=0;
 	int heroY=0;
 	int behindHero=3; // блок за героем - небо
+	int borderHeight=0; // // высота земли на краю карты
 	// статический массив
 	int stWorld[SIZEX][SIZEY];
 	// задаем сдвиг по X (можно поиграть с этим числом для наглядности)
@@ -52,7 +53,7 @@ int main( int argc, char* args[] )
 	for (i = 0; i<dynXM; i++)dynWorld[i] = (int *)malloc(sizeof(int)*dynYM);
     // ------------------------ ARRAY --------------------------------
     // заполняем массив
-    FillArray(dynXM, dynYM, dynWorld, &heroX, &heroY);
+    FillArray(dynXM, dynYM, dynWorld, &heroX, &heroY, &borderHeight);
     // передаем часть динамического массива в статический
     DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
 
@@ -98,7 +99,7 @@ int main( int argc, char* args[] )
                         }
                         // генератор карты
                         else if(e.key.keysym.sym==SDLK_r){
-                            FillArray(dynXM, dynYM, dynWorld, &heroX, &heroY);
+                            FillArray(dynXM, dynYM, dynWorld, &heroX, &heroY, &borderHeight);
                             behindHero=3; // небо за героем
                             mapMove=0;
                             DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
@@ -108,7 +109,7 @@ int main( int argc, char* args[] )
                             dynXM+=addArr;
                             dynWorld = (int **)realloc((void *)dynWorld, (dynXM+addArr)*sizeof(int *));
                             for (i = (dynXM-addArr); i<dynXM; i++)dynWorld[i] = (int *)malloc(sizeof(int)*dynYM);
-                            PlusArray(dynXM, dynYM, dynWorld, addArr);
+                            PlusArray(dynXM, dynYM, dynWorld, addArr, &borderHeight);
                             //DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
                         }
                         // карта вправо
@@ -205,7 +206,7 @@ int main( int argc, char* args[] )
 
 // ====================================== OTHER ======================================
 // заполняем массив
-int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY)
+int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borderHeight)
 {
 	int i,j,y;
 	int border1=0;
@@ -236,6 +237,9 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY)
                     dynWorld[i][y-1] = 5; // цвет героя
                     *heroX=i;
                     *heroY=y-1;
+                //высота земли на краю карты
+                }else if(i==XM-1){
+                    *borderHeight=border2;
                 }
                 flag=1;
             }
@@ -248,10 +252,10 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY)
 }
 
 //дополняем массив
-int PlusArray(int XM, int YM, int **dynWorld, int addArr)
+int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
 {
 	int i,j,y;
-	int border1=0;
+	int border1=*borderHeight;
 	int border2=0;
 	int raznitsa=0;
 	int flag=0;
@@ -273,6 +277,10 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr)
                 y=(YM-1)-border2; // ищем Y
                 for(j=(YM-1);j>=y;j--){
                     dynWorld[i][j] = 4; // сизый
+                }
+                // высота земли на краю карты
+                if(i==XM-1){
+                    *borderHeight=border2;
                 }
                 flag=1;
             }
