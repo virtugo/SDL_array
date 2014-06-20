@@ -7,9 +7,9 @@
 #include <cmath>
 
 // размеры массива для вывода на экран
-#define SIZEX 32
+#define SIZEX 50
 #define SIZEY 10
-#define BLOCKSIZE 25 // размер блока
+#define BLOCKSIZE 20 // размер блока
 
 int FillArray(int, int, int**, int*, int*, int*); // заполняем массив
 int PlusArray(int, int, int**, int, int*); // увеличиваем массив
@@ -19,8 +19,8 @@ int DrawBlock(int, int, int);
 int ClearMemory(int, int, int**); // очищаем память
 
 //Screen dimension constants
-const int SCREEN_WIDTH = 800;
-const int SCREEN_HEIGHT = 600;
+const int SCREEN_WIDTH = 1000;
+const int SCREEN_HEIGHT = 200;
 
 bool init();
 bool loadMedia();
@@ -37,7 +37,7 @@ int main( int argc, char* args[] )
 	int **dynWorld;
 	int dynXM = SIZEX;
 	int dynYM = SIZEY;
-	int addArr=10; // величина, на которую увеличивается массив(334234)
+	int addArr= SIZEX; // величина, на которую увеличивается массив
 	// координаты героя
 	int heroX=0;
 	int heroY=0;
@@ -162,26 +162,26 @@ int main( int argc, char* args[] )
                         // ВВЕРХ
                         else if(e.key.keysym.sym==SDLK_w){
                             if(heroY>0){ // граница
+                                // закрашиваем предыдущий блок
+                                dynWorld[heroX][heroY]=behindHero;
                                 heroY--;
                                 //запоминаем цвет следующего блока
                                 behindHero=dynWorld[heroX][heroY];
                                 //перемещаем героя (закрашиваем блок)
                                 dynWorld[heroX][heroY]=5;
-                                // закрашиваем предыдущий блок
-                                dynWorld[heroX][heroY+1]=behindHero;
                                 DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
                             }
                         }
                         // ВНИЗ
                         else if(e.key.keysym.sym==SDLK_s){
                             if(heroY<dynYM-1){ // граница
+                                // закрашиваем предыдущий блок
+                                dynWorld[heroX][heroY]=behindHero;
                                 heroY++;
                                 //запоминаем цвет следующего блока
                                 behindHero=dynWorld[heroX][heroY];
                                 //перемещаем героя (закрашиваем блок)
                                 dynWorld[heroX][heroY]=5;
-                                // закрашиваем предыдущий блок
-                                dynWorld[heroX][heroY-1]=behindHero;
                                 DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
                             }
                         }
