@@ -35,7 +35,7 @@ int main( int argc, char* args[] )
 {
 	// динамический массив
 	int **dynWorld;
-	int dynXM = 32;
+	int dynXM = SIZEX;
 	int dynYM = SIZEY;
 	int addArr=10; // величина, на которую увеличивается массив(334234)
 	// координаты героя
@@ -99,6 +99,7 @@ int main( int argc, char* args[] )
                         }
                         // генератор карты
                         else if(e.key.keysym.sym==SDLK_r){
+                            dynXM=SIZEX;
                             FillArray(dynXM, dynYM, dynWorld, &heroX, &heroY, &borderHeight);
                             behindHero=3; // небо за героем
                             mapMove=0;
@@ -213,6 +214,7 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borde
 	int border2=0;
 	int raznitsa=0;
 	int flag=0;
+	int treeChance=0;
 
 	// весь заполняем блоками неба
 	for (j = 0; j<YM; j++){
@@ -229,9 +231,10 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borde
             raznitsa = border2 - border1;
             if((raznitsa==1)||(raznitsa==-1)||(raznitsa==0)){
                 y=(YM-1)-border2; // ищем Y
-                for(j=(YM-1);j>=y;j--){
-                    dynWorld[i][j] = 4; // сизый
+                for(j=(YM-1);j>y;j--){
+                    dynWorld[i][j] = 6; // земля
                 }
+                dynWorld[i][y] = 2; // трава наверху
                 // координата героя
                 if(i==SIZEX/2){
                     dynWorld[i][y-1] = 5; // цвет героя
@@ -240,6 +243,19 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borde
                 //высота земли на краю карты
                 }else if(i==XM-1){
                     *borderHeight=border2;
+                }
+                // генератор деревьев
+                if((i>0)&&(i<(XM-1))){
+                    treeChance = rand() % 20;
+                    if(treeChance==1){
+                        //два коричневых и зеленые блоки
+                        dynWorld[i][y-1] = 6;
+                        dynWorld[i][y-2] = 6;
+                        dynWorld[i][y-4] = 2;
+                        dynWorld[i][y-3] = 2;
+                        dynWorld[i-1][y-3] = 2;
+                        dynWorld[i+1][y-3] = 2;
+                    }
                 }
                 flag=1;
             }
@@ -259,6 +275,7 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
 	int border2=0;
 	int raznitsa=0;
 	int flag=0;
+	int treeChance=0;
 
 	// весь заполняем блоками неба
 	for (j = 0; j<YM; j++){
@@ -275,12 +292,26 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
             raznitsa = border2 - border1;
             if((raznitsa==1)||(raznitsa==-1)||(raznitsa==0)){
                 y=(YM-1)-border2; // ищем Y
-                for(j=(YM-1);j>=y;j--){
-                    dynWorld[i][j] = 4; // сизый
+                for(j=(YM-1);j>y;j--){
+                    dynWorld[i][j] = 6; // земля
                 }
+                dynWorld[i][y] = 2; // трава наверху
                 // высота земли на краю карты
                 if(i==XM-1){
                     *borderHeight=border2;
+                }
+                // генератор деревьев
+                if((i>0)&&(i<(XM-1))){
+                    treeChance = rand() % 20;
+                    if(treeChance==1){
+                        //два коричневых и зеленые блоки
+                        dynWorld[i][y-1] = 6;
+                        dynWorld[i][y-2] = 6;
+                        dynWorld[i][y-4] = 2;
+                        dynWorld[i][y-3] = 2;
+                        dynWorld[i-1][y-3] = 2;
+                        dynWorld[i+1][y-3] = 2;
+                    }
                 }
                 flag=1;
             }
@@ -341,13 +372,18 @@ int DrawBlock(int blockType, int x1, int y1)
         SDL_SetRenderDrawColor( gRenderer, 34, 177, 76, 0 );
     // голубой
     }else if(blockType==3){
-        SDL_SetRenderDrawColor( gRenderer, 153, 217, 234, 0 );
+        //SDL_SetRenderDrawColor( gRenderer, 153, 217, 234, 0 );
+        SDL_SetRenderDrawColor( gRenderer, 211, 239, 245, 0 );
     // сизый
     }else if(blockType==4){
         SDL_SetRenderDrawColor( gRenderer, 112, 146, 190, 0 );
     // синий
     }else if(blockType==5){
         SDL_SetRenderDrawColor( gRenderer, 63, 72, 204, 0 );
+    // коричневый
+    }else if(blockType==6){
+        //SDL_SetRenderDrawColor( gRenderer, 185, 122, 87, 0 );
+        SDL_SetRenderDrawColor( gRenderer, 136, 0, 21, 0 );
     }
     // черный blockType==0
     else SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0 );
