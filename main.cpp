@@ -11,7 +11,8 @@
 #define SIZEY 10
 #define BLOCKSIZE 25 // размер блока
 
-int FillArray(int, int, int**); // заполняем массив
+int FillArray(int, int, int**, int*, int*); // заполняем массив
+int PlusArray(int, int, int**, int); // увеличиваем массив
 int DynamicToStatic(int (*)[SIZEY], int, int, int**);
 int DrawScreen(int (*)[SIZEY]);
 int DrawBlock(int, int, int);
@@ -34,21 +35,26 @@ int main( int argc, char* args[] )
 {
 	// динамический массив
 	int **dynWorld;
-	int dynXM = 100;
+	int dynXM = 32;
 	int dynYM = SIZEY;
+	int addArr=10; // величина, на которую увеличивается массив(334234)
+	// координаты героя
+	int heroX=0;
+	int heroY=0;
+	int behindHero=3; // блок за героем - небо
 	// статический массив
 	int stWorld[SIZEX][SIZEY];
 	// задаем сдвиг по X (можно поиграть с этим числом для наглядности)
-	int sdvig = 0;
+	int mapMove = 0;
 	int i;
 	// инициализируем динамический массив
 	dynWorld = (int **)malloc(sizeof(int *)*dynXM);
 	for (i = 0; i<dynXM; i++)dynWorld[i] = (int *)malloc(sizeof(int)*dynYM);
     // ------------------------ ARRAY --------------------------------
     // заполняем массив
-    FillArray(dynXM, dynYM, dynWorld);
+    FillArray(dynXM, dynYM, dynWorld, &heroX, &heroY);
     // передаем часть динамического массива в статический
-    DynamicToStatic(stWorld, sdvig, dynYM, dynWorld);
+    DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
 
     // ======================= SDL PART ==============================
 	//Start up SDL and create window
@@ -82,11 +88,105 @@ int main( int argc, char* args[] )
 					{
 						quit = true;
 					}
+					//User presses a key
+					//falconpl.org/project_docs/sdl/class_SDLK.html
+                    else if( e.type == SDL_KEYDOWN ) {
+                        // esc, q - выход
+                        if(e.key.keysym.sym==SDLK_ESCAPE ||
+                           e.key.keysym.sym==SDLK_q){
+                            quit = true;
+                        }
+                        // генератор карты
+                        else if(e.key.keysym.sym==SDLK_r){
+                            FillArray(dynXM, dynYM, dynWorld, &heroX, &heroY);
+                            behindHero=3; // небо за героем
+                            mapMove=0;
+                            DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                        }
+                        // увеличиваем массив справа
+                        else if(e.key.keysym.sym==SDLK_g){
+                            dynXM+=addArr;
+                            dynWorld = (int **)realloc((void *)dynWorld, (dynXM+addArr)*sizeof(int *));
+                            for (i = (dynXM-addArr); i<dynXM; i++)dynWorld[i] = (int *)malloc(sizeof(int)*dynYM);
+                            PlusArray(dynXM, dynYM, dynWorld, addArr);
+                            DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                        }
+                        // карта вправо
+                        else if(e.key.keysym.sym==SDLK_RIGHT){
+                            if(mapMove<(dynXM-SIZEX)){
+                                mapMove++;
+                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                            }
+                        }
+                        // карта влево
+                        else if(e.key.keysym.sym==SDLK_LEFT){
+                            if(mapMove>0){
+                                mapMove--;
+                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                            }
+                        }
+                        // ВПРАВО
+                        else if(e.key.keysym.sym==SDLK_d){
+                            if(heroX<(dynXM-1)){ // граница
+                                heroX++;
+                                //запоминаем цвет следующего блока
+                                behindHero=dynWorld[heroX][heroY];
+                                //перемещаем героя (закрашиваем блок)
+                                dynWorld[heroX][heroY]=5;
+                                // закрашиваем предыдущий блок
+                                dynWorld[heroX-1][heroY]=behindHero;
+                                //двигаем карту, если можно
+                                if(mapMove<(dynXM-SIZEX)&&
+                                    (heroX>SIZEX/2))mapMove++;
+                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                            }
+                        }
+                        // ВЛЕВО
+                        else if(e.key.keysym.sym==SDLK_a){
+                            if(heroX>0){ // граница
+                                heroX--;
+                                //запоминаем цвет следующего блока
+                                behindHero=dynWorld[heroX][heroY];
+                                //перемещаем героя (закрашиваем блок)
+                                dynWorld[heroX][heroY]=5;
+                                // закрашиваем предыдущий блок
+                                dynWorld[heroX+1][heroY]=behindHero;
+                                //двигаем карту, если можно
+                                if(mapMove>0&&
+                                   heroX<(dynXM-SIZEX/2))mapMove--;
+                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                            }
+                        }
+                        // ВВЕРХ
+                        else if(e.key.keysym.sym==SDLK_w){
+                            if(heroY>0){ // граница
+                                heroY--;
+                                //запоминаем цвет следующего блока
+                                behindHero=dynWorld[heroX][heroY];
+                                //перемещаем героя (закрашиваем блок)
+                                dynWorld[heroX][heroY]=5;
+                                // закрашиваем предыдущий блок
+                                dynWorld[heroX][heroY+1]=behindHero;
+                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                            }
+                        }
+                        // ВНИЗ
+                        else if(e.key.keysym.sym==SDLK_s){
+                            if(heroY<dynYM-1){ // граница
+                                heroY++;
+                                //запоминаем цвет следующего блока
+                                behindHero=dynWorld[heroX][heroY];
+                                //перемещаем героя (закрашиваем блок)
+                                dynWorld[heroX][heroY]=5;
+                                // закрашиваем предыдущий блок
+                                dynWorld[heroX][heroY-1]=behindHero;
+                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                            }
+                        }
+                    }
 				}
-
                 // выводим изображение на экран
-				DrawScreen(stWorld);
-
+                DrawScreen(stWorld);
 				//Update screen
 				SDL_RenderPresent( gRenderer );
 			}
@@ -105,7 +205,7 @@ int main( int argc, char* args[] )
 
 // ====================================== OTHER ======================================
 // заполняем массив
-int FillArray(int XM, int YM, int **dynWorld)
+int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY)
 {
 	int i,j,y;
 	int border1=0;
@@ -113,10 +213,10 @@ int FillArray(int XM, int YM, int **dynWorld)
 	int raznitsa=0;
 	int flag=0;
 
-	// весь заполняем белыми блоками
+	// весь заполняем блоками неба
 	for (j = 0; j<YM; j++){
 		for (i = 0; i<XM; i++){
-			dynWorld[i][j] = 3; // белые
+			dynWorld[i][j] = 3; // небо
 		}
 	}
 
@@ -132,7 +232,48 @@ int FillArray(int XM, int YM, int **dynWorld)
                     dynWorld[i][j] = 4; // сизый
                 }
                 // координата героя
-                if(i==15)dynWorld[i][y-1] = 5; // герой
+                if(i==SIZEX/2){
+                    dynWorld[i][y-1] = 5; // цвет героя
+                    *heroX=i;
+                    *heroY=y-1;
+                }
+                flag=1;
+            }
+        }while(flag!=1);
+        border1=border2;
+        flag=0;
+	}
+
+	return 0;
+}
+
+//дополняем массив
+int PlusArray(int XM, int YM, int **dynWorld, int addArr)
+{
+	int i,j,y;
+	int border1=0;
+	int border2=0;
+	int raznitsa=0;
+	int flag=0;
+
+	// весь заполняем блоками неба
+	for (j = 0; j<YM; j++){
+		for (i = XM-addArr; i<XM; i++){
+			dynWorld[i][j] = 3; // небо
+		}
+	}
+
+	// генерируем землю
+
+	for(i = XM-addArr; i<XM; i++){
+        do{
+            border2 = rand() % 5; // 01234 верхний блок(в неперевёрнутой системе координат
+            raznitsa = border2 - border1;
+            if((raznitsa==1)||(raznitsa==-1)||(raznitsa==0)){
+                y=(YM-1)-border2; // ищем Y
+                for(j=(YM-1);j>=y;j--){
+                    dynWorld[i][j] = 4; // сизый
+                }
                 flag=1;
             }
         }while(flag!=1);
@@ -144,13 +285,13 @@ int FillArray(int XM, int YM, int **dynWorld)
 }
 
 // преобразуем динамический массив в статический
-int DynamicToStatic(int stWorld[][SIZEY], int sdvig, int YM, int **dynWorld)
+int DynamicToStatic(int stWorld[][SIZEY], int mapMove, int YM, int **dynWorld)
 {
 	int i, j;
 
 	for (j = 0; j<YM; j++){
-		for (i = sdvig; i<SIZEX + sdvig; i++){
-			stWorld[i - sdvig][j] = dynWorld[i][j];
+		for (i = mapMove; i<SIZEX + mapMove; i++){
+			stWorld[i - mapMove][j] = dynWorld[i][j];
 		}
 	}
 
