@@ -1,6 +1,3 @@
-/*This source code copyrighted by Lazy Foo' Productions (2004-2013)
-and may not be redistributed without written permission.*/
-
 //Using SDL, SDL_image, standard IO, math, and strings
 #include <SDL.h>
 #include <SDL_image.h>
@@ -8,9 +5,21 @@ and may not be redistributed without written permission.*/
 #include <string>
 #include <cmath>
 
+// размер блока
+#define BLOCKSIZE 10
+
+// размеры массива для вывода на экран
+#define SIZEX 25
+#define SIZEY 20
+
+int FillArray(int, int, int**); // заполняем массив
+int DynamicToStatic(int stWorld[][SIZEY], int, int, int**);
+int DrawScreen(int stWorld[][SIZEY]);
+int ClearMemory(int, int, int**); // очищаем память
+
 //Screen dimension constants
-const int SCREEN_WIDTH = 640;
-const int SCREEN_HEIGHT = 480;
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 500;
 
 //Starts up SDL and creates window
 bool init();
@@ -30,6 +39,7 @@ SDL_Window* gWindow = NULL;
 //The window renderer
 SDL_Renderer* gRenderer = NULL;
 
+//---------------------------- INIT ---------------------------
 bool init()
 {
 	//Initialization flag
@@ -83,7 +93,7 @@ bool init()
 
 	return success;
 }
-
+//---------------------------- loadMedia ---------------------------
 bool loadMedia()
 {
 	//Loading success flag
@@ -105,6 +115,8 @@ void close()
 	IMG_Quit();
 	SDL_Quit();
 }
+
+//---------------------------- loadTexture ---------------------------
 
 SDL_Texture* loadTexture( std::string path )
 {
@@ -133,8 +145,30 @@ SDL_Texture* loadTexture( std::string path )
 	return newTexture;
 }
 
+// ====================================== MAIN ======================================
+
 int main( int argc, char* args[] )
 {
+	// динамический массив
+	int **dynWorld;
+	int dynXM = 100;
+	int dynYM = 20;
+	// статический массив
+	int stWorld[SIZEX][SIZEY];
+	// задаем сдвиг по X (можно поиграть с этим числом для наглядности)
+	int sdvig = 0;
+	char chKey;
+	int i;
+	// инициализируем динамический массив
+	dynWorld = (int **)malloc(sizeof(int *)*dynXM);
+	for (i = 0; i<dynXM; i++)dynWorld[i] = (int *)malloc(sizeof(int)*dynYM);
+    // ------------------------ ARRAY --------------------------------
+    // заполняем массив
+    FillArray(dynXM, dynYM, dynWorld);
+    // передаем часть динамического массива в статический
+    DynamicToStatic(stWorld, sdvig, dynYM, dynWorld);
+
+    // ======================= SDL PART ==============================
 	//Start up SDL and create window
 	if( !init() )
 	{
@@ -168,30 +202,8 @@ int main( int argc, char* args[] )
 					}
 				}
 
-				//Clear screen
-				SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
-				SDL_RenderClear( gRenderer );
-
-				//Render red filled quad
-				SDL_Rect fillRect = { SCREEN_WIDTH / 4, SCREEN_HEIGHT / 4, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 };
-				SDL_SetRenderDrawColor( gRenderer, 0xFF, 0x00, 0x00, 0xFF );
-				SDL_RenderFillRect( gRenderer, &fillRect );
-
-				//Render green outlined quad
-				SDL_Rect outlineRect = { SCREEN_WIDTH / 6, SCREEN_HEIGHT / 6, SCREEN_WIDTH * 2 / 3, SCREEN_HEIGHT * 2 / 3 };
-				SDL_SetRenderDrawColor( gRenderer, 0x00, 0xFF, 0x00, 0xFF );
-				SDL_RenderDrawRect( gRenderer, &outlineRect );
-
-				//Draw blue horizontal line
-				SDL_SetRenderDrawColor( gRenderer, 0x00, 0x00, 0xFF, 0xFF );
-				SDL_RenderDrawLine( gRenderer, 0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2 );
-
-				//Draw vertical line of yellow dots
-				SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0x00, 0xFF );
-				for( int i = 0; i < SCREEN_HEIGHT; i += 4 )
-				{
-					SDL_RenderDrawPoint( gRenderer, SCREEN_WIDTH / 2, i );
-				}
+                // выводим изображение на экран
+				DrawScreen(stWorld);
 
 				//Update screen
 				SDL_RenderPresent( gRenderer );
@@ -201,6 +213,83 @@ int main( int argc, char* args[] )
 
 	//Free resources and close SDL
 	close();
+	// ======================= </SDL PART> ==============================
+
+    // освобождаем память
+    ClearMemory(dynXM, dynYM, dynWorld);
+
+	return 0;
+}
+
+// ====================================== OTHER ======================================
+// заполняем массив
+int FillArray(int XM, int YM, int **dynWorld)
+{
+	int i, j;
+
+	for (j = 0; j<YM; j++){
+		for (i = 0; i<XM; i++){
+			dynWorld[i][j] = 1; // белые
+		}
+	}
+	// элемент X4 Y3 будет равен 5
+	dynWorld[4][3] = 0; // черный
+	dynWorld[5][3] = 2; // зеленый
+
+	//return *dynWorld;
+	return 0;
+}
+
+// преобразуем динамический массив в статический
+int DynamicToStatic(int stWorld[][SIZEY], int sdvig, int YM, int **dynWorld)
+{
+	int i, j;
+
+	for (j = 0; j<YM; j++){
+		for (i = sdvig; i<SIZEX + sdvig; i++){
+			stWorld[i - sdvig][j] = dynWorld[i][j];
+		}
+	}
+
+	return 0;
+}
+
+// выводим изображение на экран
+int DrawScreen(int stWorld[][SIZEY])
+{
+	int i, j;
+    int x1,y1,x2,y2;
+
+    //Очищаем экран
+    //wiki.libsdl.org/SDL_SetRenderDrawColor
+    SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0 ); // черный цвет
+    SDL_RenderClear( gRenderer );
+
+    // выводим в цикле (работает)
+    for (j = 0; j<SIZEY; j++){
+
+        y1=j*BLOCKSIZE;
+        y2=y1+BLOCKSIZE;
+        for (i = 0; i<SIZEX; i++){
+            x1=i*BLOCKSIZE;
+            x2=x1+BLOCKSIZE;
+            // DrawBlock(stWorld[i][j], x1,y1,x2,y2);
+            SDL_Rect fillRect = { x1, y1, x2, y2 };
+            SDL_SetRenderDrawColor( gRenderer, 0xFF, 0x00, 0x00, 0xFF );
+            SDL_RenderFillRect( gRenderer, &fillRect );
+        }
+    }
+
+    return 0;
+}
+
+// чистим память
+int ClearMemory(int XM, int YM, int **dynWorld)
+{
+	int i;
+
+	for (i = 0; i<XM; i++)free(dynWorld[i]);
+	free((void *)dynWorld);
 
 	return 0;
 }
