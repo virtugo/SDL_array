@@ -2,6 +2,7 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string>
 #include <cmath>
 
@@ -106,22 +107,37 @@ int main( int argc, char* args[] )
 // заполняем массив
 int FillArray(int XM, int YM, int **dynWorld)
 {
-	int i, j;
-	int border=0;
+	int i,j,y;
+	int border1=0;
+	int border2=0;
+	int raznitsa=0;
+	int flag=0;
 
-	// весь заполняем белым цветом
+	// весь заполняем белыми блоками
 	for (j = 0; j<YM; j++){
 		for (i = 0; i<XM; i++){
-			dynWorld[i][j] = 1; // белые
+			dynWorld[i][j] = 3; // белые
 		}
 	}
 
 	// генерируем землю
 
 	for(i = 0; i<XM; i++){
-        border = rand() % 5; // 01234 верхний блок(в неперевёрнутой системе координат
-        j=(YM-1)-border; // ищем Y
-        dynWorld[i][j] = 2; // зеленый
+        do{
+            border2 = rand() % 5; // 01234 верхний блок(в неперевёрнутой системе координат
+            raznitsa = border2 - border1;
+            if((raznitsa==1)||(raznitsa==-1)||(raznitsa==0)){
+                y=(YM-1)-border2; // ищем Y
+                for(j=(YM-1);j>=y;j--){
+                    dynWorld[i][j] = 4; // сизый
+                }
+                // координата героя
+                if(i==15)dynWorld[i][y-1] = 5; // герой
+                flag=1;
+            }
+        }while(flag!=1);
+        border1=border2;
+        flag=0;
 	}
 
 	return 0;
@@ -174,6 +190,15 @@ int DrawBlock(int blockType, int x1, int y1)
     // зеленый
     }else if(blockType==2){
         SDL_SetRenderDrawColor( gRenderer, 34, 177, 76, 0 );
+    // голубой
+    }else if(blockType==3){
+        SDL_SetRenderDrawColor( gRenderer, 153, 217, 234, 0 );
+    // сизый
+    }else if(blockType==4){
+        SDL_SetRenderDrawColor( gRenderer, 112, 146, 190, 0 );
+    // синий
+    }else if(blockType==5){
+        SDL_SetRenderDrawColor( gRenderer, 63, 72, 204, 0 );
     }
     // черный blockType==0
     else SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0 );
