@@ -230,7 +230,7 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borde
             border2 = rand() % 5; // 01234 верхний блок(в неперевёрнутой системе координат
             raznitsa = border2 - border1;
             if((raznitsa==1)||(raznitsa==-1)||(raznitsa==0)){
-                y=(YM-1)-border2; // ищем Y
+                y=(YM-2)-border2; // ищем Y
                 for(j=(YM-1);j>y;j--){
                     dynWorld[i][j] = 6; // земля
                 }
@@ -291,7 +291,7 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
             border2 = rand() % 5; // 01234 верхний блок(в неперевёрнутой системе координат
             raznitsa = border2 - border1;
             if((raznitsa==1)||(raznitsa==-1)||(raznitsa==0)){
-                y=(YM-1)-border2; // ищем Y
+                y=(YM-2)-border2; // ищем Y
                 for(j=(YM-1);j>y;j--){
                     dynWorld[i][j] = 6; // земля
                 }
