@@ -109,7 +109,7 @@ int main( int argc, char* args[] )
                             dynWorld = (int **)realloc((void *)dynWorld, (dynXM+addArr)*sizeof(int *));
                             for (i = (dynXM-addArr); i<dynXM; i++)dynWorld[i] = (int *)malloc(sizeof(int)*dynYM);
                             PlusArray(dynXM, dynYM, dynWorld, addArr);
-                            DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                            //DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
                         }
                         // карта вправо
                         else if(e.key.keysym.sym==SDLK_RIGHT){
@@ -128,13 +128,13 @@ int main( int argc, char* args[] )
                         // ВПРАВО
                         else if(e.key.keysym.sym==SDLK_d){
                             if(heroX<(dynXM-1)){ // граница
+                                // закрашиваем предыдущий блок
+                                dynWorld[heroX][heroY]=behindHero;
                                 heroX++;
                                 //запоминаем цвет следующего блока
                                 behindHero=dynWorld[heroX][heroY];
                                 //перемещаем героя (закрашиваем блок)
                                 dynWorld[heroX][heroY]=5;
-                                // закрашиваем предыдущий блок
-                                dynWorld[heroX-1][heroY]=behindHero;
                                 //двигаем карту, если можно
                                 if(mapMove<(dynXM-SIZEX)&&
                                     (heroX>SIZEX/2))mapMove++;
@@ -144,13 +144,13 @@ int main( int argc, char* args[] )
                         // ВЛЕВО
                         else if(e.key.keysym.sym==SDLK_a){
                             if(heroX>0){ // граница
+                                // закрашиваем предыдущий блок
+                                dynWorld[heroX][heroY]=behindHero;
                                 heroX--;
                                 //запоминаем цвет следующего блока
                                 behindHero=dynWorld[heroX][heroY];
                                 //перемещаем героя (закрашиваем блок)
                                 dynWorld[heroX][heroY]=5;
-                                // закрашиваем предыдущий блок
-                                dynWorld[heroX+1][heroY]=behindHero;
                                 //двигаем карту, если можно
                                 if(mapMove>0&&
                                    heroX<(dynXM-SIZEX/2))mapMove--;
