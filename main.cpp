@@ -3,6 +3,7 @@
 #include <SDL_image.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <string>
 #include <cmath>
 
@@ -10,6 +11,7 @@
 #define SIZEX 50
 #define SIZEY 10
 #define BLOCKSIZE 20 // размер блока
+#define MOUNTHEIGHT 5 // высота гор
 
 int FillArray(int, int, int**, int*, int*, int*); // заполняем массив
 int PlusArray(int, int, int**, int, int*); // увеличиваем массив
@@ -33,6 +35,7 @@ SDL_Renderer* gRenderer = NULL; //The window renderer
 
 int main( int argc, char* args[] )
 {
+    srand(time(NULL)); // randomize
 	// динамический массив
 	int **dynWorld;
 	int dynXM = SIZEX;
@@ -210,8 +213,8 @@ int main( int argc, char* args[] )
 int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borderHeight)
 {
 	int i,j,y;
-	int border1=0;
-	int border2=0;
+	int border1=3;
+	int border2=border1;
 	int raznitsa=0;
 	int flag=0;
 	int treeChance=0;
@@ -227,10 +230,10 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borde
 
 	for(i = 0; i<XM; i++){
         do{
-            border2 = rand() % 5; // 01234 верхний блок(в неперевёрнутой системе координат
+            border2 = (rand() % 5) + 2; // 23456 верхний блок(в неперевёрнутой системе координат
             raznitsa = border2 - border1;
             if((raznitsa==1)||(raznitsa==-1)||(raznitsa==0)){
-                y=(YM-2)-border2; // ищем Y
+                y=((YM-1)-border2)+1; // ищем Y
                 for(j=(YM-1);j>y;j--){
                     dynWorld[i][j] = 6; // земля
                 }
@@ -240,9 +243,6 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borde
                     dynWorld[i][y-1] = 5; // цвет героя
                     *heroX=i;
                     *heroY=y-1;
-                //высота земли на краю карты
-                }else if(i==XM-1){
-                    *borderHeight=border2;
                 }
                 // генератор деревьев
                 if((i>0)&&(i<(XM-1))){
@@ -263,6 +263,8 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borde
         border1=border2;
         flag=0;
 	}
+	//высота земли на краю карты
+    *borderHeight=border2;
 
 	return 0;
 }
@@ -272,10 +274,12 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
 {
 	int i,j,y;
 	int border1=*borderHeight;
-	int border2=0;
+	int border2=border1;
 	int raznitsa=0;
 	int flag=0;
 	int treeChance=0;
+    int biomType=0;
+    int bankHeight=*borderHeight; // высота берега моря
 
 	// весь заполняем блоками неба
 	for (j = 0; j<YM; j++){
@@ -283,43 +287,132 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
 			dynWorld[i][j] = 3; // небо
 		}
 	}
+	// случайно выбираем тип биома
+	biomType = rand() % 4;
+	// biomType = 3; // отладка
+	// 0 - обычный
+	// 1 - снег
+	// 2 - пустыня
+	// 3 - море
 
 	// генерируем землю
 
 	for(i = XM-addArr; i<XM; i++){
-        do{
-            border2 = rand() % 5; // 01234 верхний блок(в неперевёрнутой системе координат
-            raznitsa = border2 - border1;
-            if((raznitsa==1)||(raznitsa==-1)||(raznitsa==0)){
-                y=(YM-2)-border2; // ищем Y
-                for(j=(YM-1);j>y;j--){
-                    dynWorld[i][j] = 6; // земля
+        // если морской биом
+        if(biomType==3){
+            // дно
+            // если начало биома, то на 1 ниже,
+            // чем последний предыдущего
+            // если уже не на дне
+            // начало биома
+            if(i<(bankHeight-1)+(XM-addArr)){
+                if(border1>1)
+                {
+                    if(i!=XM-addArr)border2--;
+                    //border2--;
+                    y=YM-border2; // ищем Y (координата земди)
+                    // заполняем верх водой
+                    for(j=y-1;j>=YM-bankHeight;j--)
+                        dynWorld[i][j] = 5;
+                    // заполняем низ землей
+                    for(j=YM-1;j>=y;j--)
+                        dynWorld[i][j] = 7;
                 }
-                dynWorld[i][y] = 2; // трава наверху
-                // высота земли на краю карты
-                if(i==XM-1){
-                    *borderHeight=border2;
+                // если уже на дне, остаемся там
+                else
+                {
+                    border2=border1=1;
+                    y=YM-border2; // ищем Y
+                    dynWorld[i][YM-1] = 7;
+                    // рисуем воду
+                    for(j=YM-2;j>=YM-bankHeight;j--)
+                        dynWorld[i][j] = 5;
                 }
-                // генератор деревьев
-                if((i>0)&&(i<(XM-1))){
-                    treeChance = rand() % 20;
-                    if(treeChance==1){
-                        //два коричневых и зеленые блоки
-                        dynWorld[i][y-1] = 6;
-                        dynWorld[i][y-2] = 6;
-                        dynWorld[i][y-4] = 2;
-                        dynWorld[i][y-3] = 2;
-                        dynWorld[i-1][y-3] = 2;
-                        dynWorld[i+1][y-3] = 2;
-                    }
-                }
-                flag=1;
             }
-        }while(flag!=1);
+            // конец биома
+            else if (i>XM-bankHeight){
+                // повышаем дно
+                border2++;
+                y=YM-border2; // ищем Y
+                // заполняем низ землей
+                for(j=YM-1;j>=y;j--)
+                    dynWorld[i][j] = 7;
+                // заполняем верх водой
+                for(j=y-1;j>=YM-bankHeight;j--)
+                    dynWorld[i][j] = 5;
+            }
+            // если в середине биома, остаемся на дне
+            else
+            {
+                border1=border2=1;
+                dynWorld[i][YM-1] = 7;
+                // рисуем воду
+                for(j=YM-2;j>=YM-bankHeight;j--)
+                    dynWorld[i][j] = 5;
+            }
+            border1=border2;
+        }
+        // если биомы: обычный, снег, пустыня
+        else if(biomType==0 ||
+                biomType==1 ||
+                biomType==2)
+        {
+            do{
+                border2 = (rand() % MOUNTHEIGHT)+2; // 23456 верхний блок(в неперевёрнутой системе координат
+                raznitsa = border2 - border1;
+                if((raznitsa==1)||(raznitsa==-1)||(raznitsa==0)){
+                    y=YM-border2; // ищем Y
+                    // заполняем низ землей
+                    for(j=YM-1;j>y;j--){
+                        if((biomType==0)||
+                            (biomType==1))
+                            dynWorld[i][j] = 6; // земля
+                        else if(biomType==2)
+                            dynWorld[i][j] = 7; // песок
+                    }
+                    if(biomType==0)dynWorld[i][y] = 2; // трава наверху
+                    else if (biomType==1)dynWorld[i][y] = 1; // снег
+                    else if (biomType==2)dynWorld[i][y] = 7; // песок
+                    // генератор деревьев
+                    if((i>0)&&(i<(XM-1))){
+                        treeChance = rand() % 20;
+                        if(treeChance==1){
+                            if((biomType==0)||
+                               (biomType==1)){
+                                //два коричневых
+                                dynWorld[i][y-1] = 6;
+                                dynWorld[i][y-2] = 6;
+                            }
+                            // пустыня - кактусы
+                            else if(biomType==2){
+                                dynWorld[i][y-1] = 2;
+                                dynWorld[i][y-2] = 2;
+                            }
+                            if(biomType==0){
+                                //зеленые блоки
+                                dynWorld[i][y-4] = 2;
+                                dynWorld[i][y-3] = 2;
+                                dynWorld[i-1][y-3] = 2;
+                                dynWorld[i+1][y-3] = 2;
+                            }
+                            else if (biomType==1){
+                                dynWorld[i][y-4] = 1;
+                                dynWorld[i][y-3] = 1;
+                                dynWorld[i-1][y-3] = 1;
+                                dynWorld[i+1][y-3] = 1;
+                            }
+                        }
+                    }
+                    flag=1;
+                }
+
+            }while(flag!=1);
+        }
         border1=border2;
         flag=0;
 	}
-
+    //высота земли на краю карты
+    *borderHeight=border2;
 	return 0;
 }
 
@@ -372,7 +465,6 @@ int DrawBlock(int blockType, int x1, int y1)
         SDL_SetRenderDrawColor( gRenderer, 34, 177, 76, 0 );
     // голубой
     }else if(blockType==3){
-        //SDL_SetRenderDrawColor( gRenderer, 153, 217, 234, 0 );
         SDL_SetRenderDrawColor( gRenderer, 211, 239, 245, 0 );
     // сизый
     }else if(blockType==4){
@@ -382,8 +474,10 @@ int DrawBlock(int blockType, int x1, int y1)
         SDL_SetRenderDrawColor( gRenderer, 63, 72, 204, 0 );
     // коричневый
     }else if(blockType==6){
-        //SDL_SetRenderDrawColor( gRenderer, 185, 122, 87, 0 );
         SDL_SetRenderDrawColor( gRenderer, 136, 0, 21, 0 );
+    // желтый (пустыня)
+    }else if(blockType==7){
+        SDL_SetRenderDrawColor( gRenderer, 239, 228, 176, 0 );
     }
     // черный blockType==0
     else SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0 );
