@@ -1,6 +1,7 @@
 //Using SDL, SDL_image, standard IO, math, and strings
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -8,10 +9,12 @@
 #include <cmath>
 
 // размеры массива для вывода на экран
-#define SIZEX 50
-#define SIZEY 10
+#define SIZEX 40
+#define SIZEY 23
 #define BLOCKSIZE 20 // размер блока
-#define MOUNTHEIGHT 5 // высота гор
+#define MOUNTHEIGHT 15 // высота гор
+#define HEROCOLOR 8 // цвет героя
+// #define TREE_LEAF_COLOR 2 // цвет листвы
 
 int FillArray(int, int, int**, int*, int*, int*); // заполняем массив
 int PlusArray(int, int, int**, int, int*); // увеличиваем массив
@@ -20,9 +23,55 @@ int DrawScreen(int (*)[SIZEY]);
 int DrawBlock(int, int, int);
 int ClearMemory(int, int, int**); // очищаем память
 
+int textflag=1;
+
 //Screen dimension constants
-const int SCREEN_WIDTH = 1000;
-const int SCREEN_HEIGHT = 200;
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 450;
+
+//Texture wrapper class
+class LTexture
+{
+	public:
+		//Initializes variables
+		LTexture();
+
+		//Deallocates memory
+		~LTexture();
+
+		//Loads image at specified path
+		bool loadFromFile( std::string path );
+
+		//Creates image from font string
+		bool loadFromRenderedText( std::string textureText, SDL_Color textColor );
+
+		//Deallocates texture
+		void free();
+
+		//Set color modulation
+		void setColor( Uint8 red, Uint8 green, Uint8 blue );
+
+		//Set blending
+		void setBlendMode( SDL_BlendMode blending );
+
+		//Set alpha modulation
+		void setAlpha( Uint8 alpha );
+
+		//Renders texture at given point
+		void render( int x, int y, SDL_Rect* clip = NULL, double angle = 0.0, SDL_Point* center = NULL, SDL_RendererFlip flip = SDL_FLIP_NONE );
+
+		//Gets image dimensions
+		int getWidth();
+		int getHeight();
+
+	private:
+		//The actual hardware texture
+		SDL_Texture* mTexture;
+
+		//Image dimensions
+		int mWidth;
+		int mHeight;
+};
 
 bool init();
 bool loadMedia();
@@ -30,6 +79,9 @@ void close();
 SDL_Texture* loadTexture( std::string path );
 SDL_Window* gWindow = NULL; //The window we'll be rendering to
 SDL_Renderer* gRenderer = NULL; //The window renderer
+TTF_Font *gFont = NULL; //Globally used font
+LTexture gTextTexture1; // TEXT1
+LTexture gTextTexture2; // TEXT2
 
 // ====================================== MAIN ======================================
 
@@ -62,141 +114,133 @@ int main( int argc, char* args[] )
 
     // ======================= SDL PART ==============================
 	//Start up SDL and create window
-	if( !init() )
-	{
-		printf( "Failed to initialize!\n" );
-	}
-	else
-	{
-		//Load media
-		if( !loadMedia() )
-		{
-			printf( "Failed to load media!\n" );
-		}
-		else
-		{
-			//Main loop flag
-			bool quit = false;
+	init();
+    //Load media
+    loadMedia();
 
-			//Event handler
-			SDL_Event e;
+    //Main loop flag
+    bool quit = false;
 
-			//While application is running
-			while( !quit )
-			{
-				//Handle events on queue
-				while( SDL_PollEvent( &e ) != 0 )
-				{
-					//User requests quit
-					if( e.type == SDL_QUIT )
-					{
-						quit = true;
-					}
-					//User presses a key
-					//falconpl.org/project_docs/sdl/class_SDLK.html
-                    else if( e.type == SDL_KEYDOWN ) {
-                        // esc, q - выход
-                        if(e.key.keysym.sym==SDLK_ESCAPE ||
-                           e.key.keysym.sym==SDLK_q){
-                            quit = true;
-                        }
-                        // генератор карты
-                        else if(e.key.keysym.sym==SDLK_r){
-                            dynXM=SIZEX;
-                            FillArray(dynXM, dynYM, dynWorld, &heroX, &heroY, &borderHeight);
-                            behindHero=3; // небо за героем
-                            mapMove=0;
-                            DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
-                        }
-                        // увеличиваем массив справа
-                        else if(e.key.keysym.sym==SDLK_g){
-                            dynXM+=addArr;
-                            dynWorld = (int **)realloc((void *)dynWorld, (dynXM+addArr)*sizeof(int *));
-                            for (i = (dynXM-addArr); i<dynXM; i++)dynWorld[i] = (int *)malloc(sizeof(int)*dynYM);
-                            PlusArray(dynXM, dynYM, dynWorld, addArr, &borderHeight);
-                            //DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
-                        }
-                        // карта вправо
-                        else if(e.key.keysym.sym==SDLK_RIGHT){
-                            if(mapMove<(dynXM-SIZEX)){
-                                mapMove++;
-                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
-                            }
-                        }
-                        // карта влево
-                        else if(e.key.keysym.sym==SDLK_LEFT){
-                            if(mapMove>0){
-                                mapMove--;
-                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
-                            }
-                        }
-                        // ВПРАВО
-                        else if(e.key.keysym.sym==SDLK_d){
-                            if(heroX<(dynXM-1)){ // граница
-                                // закрашиваем предыдущий блок
-                                dynWorld[heroX][heroY]=behindHero;
-                                heroX++;
-                                //запоминаем цвет следующего блока
-                                behindHero=dynWorld[heroX][heroY];
-                                //перемещаем героя (закрашиваем блок)
-                                dynWorld[heroX][heroY]=5;
-                                //двигаем карту, если можно
-                                if(mapMove<(dynXM-SIZEX)&&
-                                    (heroX>SIZEX/2))mapMove++;
-                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
-                            }
-                        }
-                        // ВЛЕВО
-                        else if(e.key.keysym.sym==SDLK_a){
-                            if(heroX>0){ // граница
-                                // закрашиваем предыдущий блок
-                                dynWorld[heroX][heroY]=behindHero;
-                                heroX--;
-                                //запоминаем цвет следующего блока
-                                behindHero=dynWorld[heroX][heroY];
-                                //перемещаем героя (закрашиваем блок)
-                                dynWorld[heroX][heroY]=5;
-                                //двигаем карту, если можно
-                                if(mapMove>0&&
-                                   heroX<(dynXM-SIZEX/2))mapMove--;
-                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
-                            }
-                        }
-                        // ВВЕРХ
-                        else if(e.key.keysym.sym==SDLK_w){
-                            if(heroY>0){ // граница
-                                // закрашиваем предыдущий блок
-                                dynWorld[heroX][heroY]=behindHero;
-                                heroY--;
-                                //запоминаем цвет следующего блока
-                                behindHero=dynWorld[heroX][heroY];
-                                //перемещаем героя (закрашиваем блок)
-                                dynWorld[heroX][heroY]=5;
-                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
-                            }
-                        }
-                        // ВНИЗ
-                        else if(e.key.keysym.sym==SDLK_s){
-                            if(heroY<dynYM-1){ // граница
-                                // закрашиваем предыдущий блок
-                                dynWorld[heroX][heroY]=behindHero;
-                                heroY++;
-                                //запоминаем цвет следующего блока
-                                behindHero=dynWorld[heroX][heroY];
-                                //перемещаем героя (закрашиваем блок)
-                                dynWorld[heroX][heroY]=5;
-                                DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
-                            }
-                        }
+    //Event handler
+    SDL_Event e;
+
+    //While application is running
+    while( !quit )
+    {
+        //Handle events on queue
+        while( SDL_PollEvent( &e ) != 0 )
+        {
+            //User requests quit
+            if( e.type == SDL_QUIT )
+            {
+                quit = true;
+            }
+            //User presses a key
+            //falconpl.org/project_docs/sdl/class_SDLK.html
+            else if( e.type == SDL_KEYDOWN ) {
+                // esc, q - выход
+                if(e.key.keysym.sym==SDLK_ESCAPE ||
+                   e.key.keysym.sym==SDLK_q){
+                    quit = true;
+                }
+                // генератор карты
+                else if(e.key.keysym.sym==SDLK_r){
+                    dynXM=SIZEX;
+                    FillArray(dynXM, dynYM, dynWorld, &heroX, &heroY, &borderHeight);
+                    behindHero=3; // небо за героем
+                    mapMove=0;
+                    DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                }
+                // увеличиваем массив справа
+                else if(e.key.keysym.sym==SDLK_g){
+                    dynXM+=addArr;
+                    dynWorld = (int **)realloc((void *)dynWorld, (dynXM+addArr)*sizeof(int *));
+                    for (i = (dynXM-addArr); i<dynXM; i++)dynWorld[i] = (int *)malloc(sizeof(int)*dynYM);
+                    PlusArray(dynXM, dynYM, dynWorld, addArr, &borderHeight);
+                    //DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                }
+                // карта вправо
+                else if(e.key.keysym.sym==SDLK_RIGHT){
+                    if(mapMove<(dynXM-SIZEX)){
+                        mapMove++;
+                        DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
                     }
-				}
-                // выводим изображение на экран
-                DrawScreen(stWorld);
-				//Update screen
-				SDL_RenderPresent( gRenderer );
-			}
-		}
-	}
+                }
+                // карта влево
+                else if(e.key.keysym.sym==SDLK_LEFT){
+                    if(mapMove>0){
+                        mapMove--;
+                        DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                    }
+                }
+                // ВПРАВО
+                else if(e.key.keysym.sym==SDLK_d){
+                    if(heroX<(dynXM-1)){ // граница
+                        // закрашиваем предыдущий блок
+                        dynWorld[heroX][heroY]=behindHero;
+                        heroX++;
+                        //запоминаем цвет следующего блока
+                        behindHero=dynWorld[heroX][heroY];
+                        //перемещаем героя (закрашиваем блок)
+                        dynWorld[heroX][heroY]=HEROCOLOR;
+                        //двигаем карту, если можно
+                        if(mapMove<(dynXM-SIZEX)&&
+                            (heroX>SIZEX/2))mapMove++;
+                        DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                    }
+                }
+                // ВЛЕВО
+                else if(e.key.keysym.sym==SDLK_a){
+                    if(heroX>0){ // граница
+                        // закрашиваем предыдущий блок
+                        dynWorld[heroX][heroY]=behindHero;
+                        heroX--;
+                        //запоминаем цвет следующего блока
+                        behindHero=dynWorld[heroX][heroY];
+                        //перемещаем героя (закрашиваем блок)
+                        dynWorld[heroX][heroY]=HEROCOLOR;
+                        //двигаем карту, если можно
+                        if(mapMove>0&&
+                           heroX<(dynXM-SIZEX/2))mapMove--;
+                        DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                    }
+                }
+                // ВВЕРХ
+                else if(e.key.keysym.sym==SDLK_w){
+                    if(heroY>0){ // граница
+                        // закрашиваем предыдущий блок
+                        dynWorld[heroX][heroY]=behindHero;
+                        heroY--;
+                        //запоминаем цвет следующего блока
+                        behindHero=dynWorld[heroX][heroY];
+                        //перемещаем героя (закрашиваем блок)
+                        dynWorld[heroX][heroY]=HEROCOLOR;
+                        DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                    }
+                }
+                // ВНИЗ
+                else if(e.key.keysym.sym==SDLK_s){
+                    if(heroY<dynYM-1){ // граница
+                        // закрашиваем предыдущий блок
+                        dynWorld[heroX][heroY]=behindHero;
+                        heroY++;
+                        //запоминаем цвет следующего блока
+                        behindHero=dynWorld[heroX][heroY];
+                        //перемещаем героя (закрашиваем блок)
+                        dynWorld[heroX][heroY]=HEROCOLOR;
+                        DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
+                    }
+                }
+                else if(e.key.keysym.sym==SDLK_t){
+                    textflag=!textflag;
+                }
+            }
+        }
+        // выводим изображение на экран
+        DrawScreen(stWorld);
+        //Update screen
+        SDL_RenderPresent( gRenderer );
+    }
 
 	//Free resources and close SDL
 	close();
@@ -230,7 +274,7 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borde
 
 	for(i = 0; i<XM; i++){
         do{
-            border2 = (rand() % 5) + 2; // 23456 верхний блок(в неперевёрнутой системе координат
+            border2 = (rand() % MOUNTHEIGHT)+2; // 23456 верхний блок(в неперевёрнутой системе координат
             raznitsa = border2 - border1;
             if((raznitsa==1)||(raznitsa==-1)||(raznitsa==0)){
                 y=((YM-1)-border2)+1; // ищем Y
@@ -240,7 +284,7 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borde
                 dynWorld[i][y] = 2; // трава наверху
                 // координата героя
                 if(i==SIZEX/2){
-                    dynWorld[i][y-1] = 5; // цвет героя
+                    dynWorld[i][y-1] = HEROCOLOR; // цвет героя
                     *heroX=i;
                     *heroY=y-1;
                 }
@@ -450,6 +494,11 @@ int DrawScreen(int stWorld[][SIZEY])
         }
     }
 
+    // выводим текст
+    //gTextTexture1.render( ( SCREEN_WIDTH - gTextTexture1.getWidth() ) / 2, ( SCREEN_HEIGHT - gTextTexture1.getHeight() ) / 2 );
+    gTextTexture1.render(0,0);
+    if(textflag==1)gTextTexture2.render(0,25);
+
     return 0;
 }
 
@@ -479,7 +528,9 @@ int DrawBlock(int blockType, int x1, int y1)
     }else if(blockType==7){
         //SDL_SetRenderDrawColor( gRenderer, 239, 228, 176, 0 );
         SDL_SetRenderDrawColor( gRenderer, 255, 201, 14, 0 );
-
+    // лиловый (фиолетовый)
+    }else if(blockType==8){
+        SDL_SetRenderDrawColor( gRenderer, 163, 73, 164, 0 );
     }
     // черный blockType==0
     else SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0 );
@@ -548,6 +599,13 @@ bool init()
 					printf( "SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError() );
 					success = false;
 				}
+
+				//Initialize SDL_ttf
+				if( TTF_Init() == -1 )
+				{
+					printf( "SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError() );
+					success = false;
+				}
 			}
 		}
 	}
@@ -560,10 +618,17 @@ bool loadMedia()
 {
 	//Loading success flag
 	bool success = true;
-
+	//Open the font
+	gFont = TTF_OpenFont( "arial.ttf", 28 );
+    //Render text
+    SDL_Color textColor = { 0, 0, 0 };
+    // подгрузка текста
+    gTextTexture1.loadFromRenderedText( "PRESS t", textColor );
+    gTextTexture2.loadFromRenderedText( "TEST MESSAGE 2", textColor );
 	//Nothing to load
 	return success;
 }
+
 //Frees media and shuts down SDL
 void close()
 {
@@ -574,6 +639,7 @@ void close()
 	gRenderer = NULL;
 
 	//Quit SDL subsystems
+	TTF_Quit();
 	IMG_Quit();
 	SDL_Quit();
 }
@@ -603,4 +669,149 @@ SDL_Texture* loadTexture( std::string path )
 	}
 
 	return newTexture;
+}
+
+// ========= FONT ==========
+LTexture::LTexture()
+{
+	//Initialize
+	mTexture = NULL;
+	mWidth = 0;
+	mHeight = 0;
+}
+
+LTexture::~LTexture()
+{
+	//Deallocate
+	free();
+}
+
+bool LTexture::loadFromFile( std::string path )
+{
+	//Get rid of preexisting texture
+	free();
+
+	//The final texture
+	SDL_Texture* newTexture = NULL;
+
+	//Load image at specified path
+	SDL_Surface* loadedSurface = IMG_Load( path.c_str() );
+	if( loadedSurface == NULL )
+	{
+		printf( "Unable to load image %s! SDL_image Error: %s\n", path.c_str(), IMG_GetError() );
+	}
+	else
+	{
+		//Color key image
+		SDL_SetColorKey( loadedSurface, SDL_TRUE, SDL_MapRGB( loadedSurface->format, 0, 0xFF, 0xFF ) );
+
+		//Create texture from surface pixels
+        newTexture = SDL_CreateTextureFromSurface( gRenderer, loadedSurface );
+		if( newTexture == NULL )
+		{
+			printf( "Unable to create texture from %s! SDL Error: %s\n", path.c_str(), SDL_GetError() );
+		}
+		else
+		{
+			//Get image dimensions
+			mWidth = loadedSurface->w;
+			mHeight = loadedSurface->h;
+		}
+
+		//Get rid of old loaded surface
+		SDL_FreeSurface( loadedSurface );
+	}
+
+	//Return success
+	mTexture = newTexture;
+	return mTexture != NULL;
+}
+
+bool LTexture::loadFromRenderedText( std::string textureText, SDL_Color textColor )
+{
+	//Get rid of preexisting texture
+	free();
+
+	//Render text surface
+	SDL_Surface* textSurface = TTF_RenderText_Solid( gFont, textureText.c_str(), textColor );
+	if( textSurface == NULL )
+	{
+		printf( "Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError() );
+	}
+	else
+	{
+		//Create texture from surface pixels
+        mTexture = SDL_CreateTextureFromSurface( gRenderer, textSurface );
+		if( mTexture == NULL )
+		{
+			printf( "Unable to create texture from rendered text! SDL Error: %s\n", SDL_GetError() );
+		}
+		else
+		{
+			//Get image dimensions
+			mWidth = textSurface->w;
+			mHeight = textSurface->h;
+		}
+
+		//Get rid of old surface
+		SDL_FreeSurface( textSurface );
+	}
+
+	//Return success
+	return mTexture != NULL;
+}
+
+void LTexture::free()
+{
+	//Free texture if it exists
+	if( mTexture != NULL )
+	{
+		SDL_DestroyTexture( mTexture );
+		mTexture = NULL;
+		mWidth = 0;
+		mHeight = 0;
+	}
+}
+
+void LTexture::setColor( Uint8 red, Uint8 green, Uint8 blue )
+{
+	//Modulate texture rgb
+	SDL_SetTextureColorMod( mTexture, red, green, blue );
+}
+void LTexture::setBlendMode( SDL_BlendMode blending )
+{
+	//Set blending function
+	SDL_SetTextureBlendMode( mTexture, blending );
+}
+
+void LTexture::setAlpha( Uint8 alpha )
+{
+	//Modulate texture alpha
+	SDL_SetTextureAlphaMod( mTexture, alpha );
+}
+
+void LTexture::render( int x, int y, SDL_Rect* clip, double angle, SDL_Point* center, SDL_RendererFlip flip )
+{
+	//Set rendering space and render to screen
+	SDL_Rect renderQuad = { x, y, mWidth, mHeight };
+
+	//Set clip rendering dimensions
+	if( clip != NULL )
+	{
+		renderQuad.w = clip->w;
+		renderQuad.h = clip->h;
+	}
+
+	//Render to screen
+	SDL_RenderCopyEx( gRenderer, mTexture, clip, &renderQuad, angle, center, flip );
+}
+
+int LTexture::getWidth()
+{
+	return mWidth;
+}
+
+int LTexture::getHeight()
+{
+	return mHeight;
 }
