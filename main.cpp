@@ -27,6 +27,9 @@ int DrawScreen(int (*)[SIZEY]);
 int DrawBlock(int, int, int);
 int ClearMemory(int, int, int**); // очищаем память
 
+//двигаем героя
+int heroGoRight(int*,int,int,int,int**,int(*)[SIZEY],int*,int*);
+
 // PUBLIC VARIABLES
 char text1[10]="0"; // верхняя строка меню
 int intInventory = 0;
@@ -184,19 +187,7 @@ int main( int argc, char* args[] )
                 }
                 // ВПРАВО
                 else if(e.key.keysym.sym==SDLK_d){
-                    if(heroX<(dynXM-1)){ // граница
-                        // закрашиваем предыдущий блок
-                        dynWorld[heroX][heroY]=behindHero;
-                        heroX++;
-                        //запоминаем цвет следующего блока
-                        behindHero=dynWorld[heroX][heroY];
-                        //перемещаем героя (закрашиваем блок)
-                        dynWorld[heroX][heroY]=HEROCOLOR;
-                        //двигаем карту, если можно
-                        if(mapMove<(dynXM-SIZEX)&&
-                            (heroX>SIZEX/2))mapMove++;
-                        DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
-                    }
+                    heroGoRight(&heroX,heroY,dynXM,dynYM,dynWorld,stWorld,&behindHero,&mapMove);
                 }
                 // ВЛЕВО
                 else if(e.key.keysym.sym==SDLK_a){
@@ -841,4 +832,22 @@ int LTexture::getWidth()
 int LTexture::getHeight()
 {
 	return mHeight;
+}
+
+// ПЕРЕМЕЩЕНИЕ ГЕРОЯ
+int heroGoRight(int *heroX,int heroY, int dynXM, int dynYM,int **dynWorld, int stWorld[][SIZEY], int *behindHero,int *mapMove){
+    if(*heroX<(dynXM-1)){ // граница
+        // закрашиваем предыдущий блок
+        dynWorld[*heroX][heroY]=*behindHero;
+        *heroX=*heroX+1;
+        //запоминаем цвет следующего блока
+        *behindHero=dynWorld[*heroX][heroY];
+        //перемещаем героя (закрашиваем блок)
+        dynWorld[*heroX][heroY]=HEROCOLOR;
+        //двигаем карту, если можно
+        if(*mapMove<(dynXM-SIZEX)&&
+            (*heroX>SIZEX/2))*mapMove=*mapMove+1;
+        DynamicToStatic(stWorld, *mapMove, dynYM, dynWorld);
+    }
+    return 0;
 }
