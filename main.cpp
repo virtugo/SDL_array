@@ -14,9 +14,12 @@
 #define BLOCKSIZE 20 // размер блока
 #define MOUNTHEIGHT 15 // высота гор
 #define HEROCOLOR 8 // цвет героя
+#define BLOCKEMPTY 3 // цвет пустого блока (небо)
+#define BLOCKDIRT 6 // земля
+#define BLOCKGRASS 9 // трава
 // #define TREE_LEAF_COLOR 2 // цвет листвы
 // текст для второй строки меню
-#define MODEWALK "walk mode"
+#define MODEWALK "fly mode"
 #define MODEDIG "dig mode"
 #define MODEBUILD "build mode"
 
@@ -28,10 +31,14 @@ int DrawBlock(int, int, int);
 int ClearMemory(int, int, int**); // очищаем память
 
 //перемещение героя
+int heroMove(int**, int*, int*, int, int, int*);
 int heroGoRight(int*,int,int,int,int**,int(*)[SIZEY],int*,int*);
 int heroGoLeft(int*,int,int,int,int**,int(*)[SIZEY],int*,int*);
 int heroGoUp(int*,int*,int,int,int**,int(*)[SIZEY],int*,int*);
 int heroGoDown(int*,int*,int,int,int**,int(*)[SIZEY],int*,int*);
+
+// копать
+int digDo(int**, int*, int*, int, int, int*);
 
 // PUBLIC VARIABLES
 char text1[10]="0"; // верхняя строка меню
@@ -492,6 +499,8 @@ int DrawScreen(int stWorld[][SIZEY])
     return 0;
 }
 
+// рисуем блок
+// цвета здесь
 int DrawBlock(int blockType, int x1, int y1)
 {
     SDL_Rect fillRect = { x1, y1, BLOCKSIZE, BLOCKSIZE }; //x,y,ширина, длина
@@ -861,15 +870,55 @@ int heroGoUp(int *heroX,int *heroY, int dynXM, int dynYM,int **dynWorld, int stW
 
 // ПЕРЕМЕЩЕНИЕ ГЕРОЯ - ВНИЗ
 int heroGoDown(int *heroX,int *heroY, int dynXM, int dynYM,int **dynWorld, int stWorld[][SIZEY], int *behindHero,int *mapMove){
+    int nextX, nextY;
+
     if(*heroY<dynYM-1){ // граница
-        // закрашиваем предыдущий блок
-        dynWorld[*heroX][*heroY]=*behindHero;
-        *heroY=*heroY+1;
-        //запоминаем цвет следующего блока
-        *behindHero=dynWorld[*heroX][*heroY];
-        //перемещаем героя (закрашиваем блок)
-        dynWorld[*heroX][*heroY]=HEROCOLOR;
+        nextX=*heroX;
+        nextY=*heroY+1;
+        // обычный режим
+        if(gameMode==0){
+            heroMove(dynWorld, heroX, heroY, nextX, nextY, behindHero);
+        }
+        // режим копания
+        else if(gameMode==1){
+            digDo(dynWorld, heroX, heroY, nextX, nextY, behindHero);// блок за героем
+        }
         DynamicToStatic(stWorld, *mapMove, dynYM, dynWorld);
     }
+    return 0;
+}
+
+// Копать
+int digDo(int **dynWorld, int *heroX, int *heroY, int nextX, int nextY, int *behindHero){
+    if(dynWorld[nextX][nextY]== BLOCKDIRT || // если земля
+       dynWorld[nextX][nextY]== BLOCKGRASS) // или трава
+    {
+        intInventory++;
+        // старый блок становится пустым
+        dynWorld[*heroX][*heroY]=BLOCKEMPTY;
+        // запоминаем цвет блока за героем
+        *behindHero=dynWorld[nextX][nextY];
+        //перемещаем героя (закрашиваем блок)
+        dynWorld[nextX][nextY]=HEROCOLOR;
+        *heroX=nextX;
+        *heroY=nextY;
+    }
+    // если пустой блок(земля, ствол, крона дерева, кактус), просто перемещаемся
+    else if(dynWorld[nextX][nextY]==BLOCKEMPTY)
+        heroMove(dynWorld,heroX,heroY,nextX,nextY,behindHero);
+    return 0;
+}
+
+int heroMove(int **dynWorld, int *heroX, int *heroY, int nextX, int nextY, int *behindHero){
+
+    // текущий блок закрашиваем ранее запомненным цветом
+    dynWorld[*heroX][*heroY]=*behindHero;
+    // запоминаем цвет следующего блока
+    *behindHero=dynWorld[nextX][nextY];
+    //перемещаем героя (закрашиваем блок)
+    dynWorld[nextX][nextY]=HEROCOLOR;
+    *heroX=nextX;
+    *heroY=nextY;
+
     return 0;
 }
