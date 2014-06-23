@@ -316,14 +316,14 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
                         dynWorld[i][j] = 5;
                     // заполняем низ землей
                     for(j=YM-1;j>=y;j--)
-                        dynWorld[i][j] = 7;
+                        dynWorld[i][j] = 6;
                 }
                 // если уже на дне, остаемся там
                 else
                 {
                     border2=border1=1;
                     y=YM-border2; // ищем Y
-                    dynWorld[i][YM-1] = 7;
+                    dynWorld[i][YM-1] = 6;
                     // рисуем воду
                     for(j=YM-2;j>=YM-bankHeight;j--)
                         dynWorld[i][j] = 5;
@@ -336,7 +336,7 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
                 y=YM-border2; // ищем Y
                 // заполняем низ землей
                 for(j=YM-1;j>=y;j--)
-                    dynWorld[i][j] = 7;
+                    dynWorld[i][j] = 6;
                 // заполняем верх водой
                 for(j=y-1;j>=YM-bankHeight;j--)
                     dynWorld[i][j] = 5;
@@ -345,7 +345,7 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
             else
             {
                 border1=border2=1;
-                dynWorld[i][YM-1] = 7;
+                dynWorld[i][YM-1] = 6;
                 // рисуем воду
                 for(j=YM-2;j>=YM-bankHeight;j--)
                     dynWorld[i][j] = 5;
@@ -477,7 +477,9 @@ int DrawBlock(int blockType, int x1, int y1)
         SDL_SetRenderDrawColor( gRenderer, 136, 0, 21, 0 );
     // желтый (пустыня)
     }else if(blockType==7){
-        SDL_SetRenderDrawColor( gRenderer, 239, 228, 176, 0 );
+        //SDL_SetRenderDrawColor( gRenderer, 239, 228, 176, 0 );
+        SDL_SetRenderDrawColor( gRenderer, 255, 201, 14, 0 );
+
     }
     // черный blockType==0
     else SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0 );
