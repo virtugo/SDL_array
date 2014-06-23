@@ -14,9 +14,12 @@
 #define BLOCKSIZE 20 // размер блока
 #define MOUNTHEIGHT 15 // высота гор
 #define HEROCOLOR 8 // цвет героя
+#define BLOCKLEAF 2 // листва
 #define BLOCKEMPTY 3 // цвет пустого блока (небо)
 #define BLOCKDIRT 6 // земля
+#define BLOCKSAND 7 // песок
 #define BLOCKGRASS 9 // трава
+#define BLOCKTRUNK 10 // ствол дерева
 // #define TREE_LEAF_COLOR 2 // цвет листвы
 // текст для второй строки меню
 #define MODEWALK "fly mode"
@@ -32,19 +35,21 @@ int ClearMemory(int, int, int**); // очищаем память
 
 //перемещение героя
 int heroMove(int**, int*, int*, int, int, int*);
-int heroGoRight(int*,int,int,int,int**,int(*)[SIZEY],int*,int*);
-int heroGoLeft(int*,int,int,int,int**,int(*)[SIZEY],int*,int*);
+int heroGoRight(int*,int*,int,int,int**,int(*)[SIZEY],int*,int*);
+int heroGoLeft(int*,int*,int,int,int**,int(*)[SIZEY],int*,int*);
 int heroGoUp(int*,int*,int,int,int**,int(*)[SIZEY],int*,int*);
 int heroGoDown(int*,int*,int,int,int**,int(*)[SIZEY],int*,int*);
 
 // копать
 int digDo(int**, int*, int*, int, int, int*);
+// строить
+int buildDo(int**, int*, int*, int, int, int*);
 
 // PUBLIC VARIABLES
 char text1[10]="0"; // верхняя строка меню
 int intInventory = 0;
 int gameMode = 0; // режим игры: ходить, копать, строить
-#define MODEMAX 1 // максимальный индекс режима игры (для удобства здесь)
+#define MODEMAX 2 // максимальный индекс режима игры (для удобства здесь)
 
 //Screen dimension constants
 const int SCREEN_WIDTH = 800;
@@ -164,13 +169,14 @@ int main( int argc, char* args[] )
                    e.key.keysym.sym==SDLK_q){
                     quit = true;
                 }
-                // генератор карты
+                // RESTART
                 else if(e.key.keysym.sym==SDLK_r){
                     dynXM=SIZEX;
                     FillArray(dynXM, dynYM, dynWorld, &heroX, &heroY, &borderHeight);
                     behindHero=3; // небо за героем
                     mapMove=0;
                     intInventory=0;
+                    gameMode=0;
                     DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
                 }
                 // увеличиваем массив справа
@@ -197,11 +203,11 @@ int main( int argc, char* args[] )
                 }
                 // ВПРАВО
                 else if(e.key.keysym.sym==SDLK_d){
-                    heroGoRight(&heroX,heroY,dynXM,dynYM,dynWorld,stWorld,&behindHero,&mapMove);
+                    heroGoRight(&heroX,&heroY,dynXM,dynYM,dynWorld,stWorld,&behindHero,&mapMove);
                 }
                 // ВЛЕВО
                 else if(e.key.keysym.sym==SDLK_a){
-                    heroGoLeft(&heroX,heroY,dynXM,dynYM,dynWorld,stWorld,&behindHero,&mapMove);
+                    heroGoLeft(&heroX,&heroY,dynXM,dynYM,dynWorld,stWorld,&behindHero,&mapMove);
                 }
                 // ВВЕРХ
                 else if(e.key.keysym.sym==SDLK_w){
@@ -213,16 +219,18 @@ int main( int argc, char* args[] )
                 }
                 else if(e.key.keysym.sym==SDLK_t){
                     intInventory++;
-                    /*
-                    // меняем текстуру
-                    SDL_Color textColor = { 0, 0, 0 };
-                    gTextTexture1.loadFromRenderedText( text1, textColor );
-                    */
                 }
                 else if(e.key.keysym.sym==SDLK_1){
                     if(gameMode<MODEMAX)gameMode++;
                     else gameMode=0;
                 }
+                /*
+                // если нажали пробел, строим на текущем месте
+                else if(e.key.keysym.sym==SDLK_SPACE){
+                   dynWorld[heroX][heroY]==BLOCKDIRT;
+                   intInventory--;
+                }
+                */
             }
         }
         // выводим изображение на экран
@@ -494,6 +502,7 @@ int DrawScreen(int stWorld[][SIZEY])
     // вторая строка
     if(gameMode==0)gTextTexture2.loadFromRenderedText( MODEWALK, textColor );
     else if(gameMode==1)gTextTexture2.loadFromRenderedText( MODEDIG, textColor );
+    else if(gameMode==2)gTextTexture2.loadFromRenderedText( MODEBUILD, textColor );
     gTextTexture2.render(0,25);
 
     return 0;
@@ -817,52 +826,74 @@ int LTexture::getHeight()
 }
 
 // ПЕРЕМЕЩЕНИЕ ГЕРОЯ - ВПРАВО
-int heroGoRight(int *heroX,int heroY, int dynXM, int dynYM,int **dynWorld, int stWorld[][SIZEY], int *behindHero,int *mapMove){
+int heroGoRight(int *heroX,int *heroY, int dynXM, int dynYM,int **dynWorld, int stWorld[][SIZEY], int *behindHero,int *mapMove){
+    int nextX, nextY;
     if(*heroX<(dynXM-1)){ // граница
-        // закрашиваем предыдущий блок
-        dynWorld[*heroX][heroY]=*behindHero;
-        *heroX=*heroX+1;
-        //запоминаем цвет следующего блока
-        *behindHero=dynWorld[*heroX][heroY];
-        //перемещаем героя (закрашиваем блок)
-        dynWorld[*heroX][heroY]=HEROCOLOR;
-        //двигаем карту, если можно
-        if(*mapMove<(dynXM-SIZEX)&&
-            (*heroX>SIZEX/2))*mapMove=*mapMove+1;
+        nextX=*heroX+1;nextY=*heroY;
+        // обычный режим
+        if(gameMode==0){
+            heroMove(dynWorld, heroX, heroY, nextX, nextY, behindHero);
+            //двигаем карту, если можно
+            if((*mapMove<(dynXM-SIZEX))&&(*heroX>SIZEX/2))*mapMove=*mapMove+1;
+        }
+        // режим копания
+        else if(gameMode==1){
+            digDo(dynWorld, heroX, heroY, nextX, nextY, behindHero); // блок за героем
+            //двигаем карту, если можно
+            if((*mapMove<(dynXM-SIZEX))&&(*heroX>SIZEX/2))*mapMove=*mapMove+1;
+        }
+        // режим строительства
+        else if(gameMode==2){
+            buildDo(dynWorld, heroX, heroY, nextX, nextY, behindHero); // строительство
+        }
         DynamicToStatic(stWorld, *mapMove, dynYM, dynWorld);
     }
     return 0;
 }
 
 // ПЕРЕМЕЩЕНИЕ ГЕРОЯ - ВЛЕВО
-int heroGoLeft(int *heroX,int heroY, int dynXM, int dynYM,int **dynWorld, int stWorld[][SIZEY], int *behindHero,int *mapMove){
+int heroGoLeft(int *heroX,int *heroY, int dynXM, int dynYM,int **dynWorld, int stWorld[][SIZEY], int *behindHero,int *mapMove){
+    int nextX, nextY;
     if(*heroX>0){ // граница
-        // закрашиваем предыдущий блок
-        dynWorld[*heroX][heroY]=*behindHero;
-        *heroX=*heroX-1;
-        //запоминаем цвет следующего блока
-        *behindHero=dynWorld[*heroX][heroY];
-        //перемещаем героя (закрашиваем блок)
-        dynWorld[*heroX][heroY]=HEROCOLOR;
-        //двигаем карту, если можно
-        if(*mapMove>0&&
-           *heroX<(dynXM-SIZEX/2))*mapMove=*mapMove-1;
+        nextX=*heroX-1;nextY=*heroY;
+        // обычный режим
+        if(gameMode==0){
+            heroMove(dynWorld, heroX, heroY, nextX, nextY, behindHero);
+            //двигаем карту, если можно
+            if((*mapMove>0)&&((*heroX)<(dynXM-SIZEX/2)))*mapMove=*mapMove-1;
+        }
+        // режим копания
+        else if(gameMode==1){
+            digDo(dynWorld, heroX, heroY, nextX, nextY, behindHero);// блок за героем
+            //двигаем карту, если можно
+            if((*mapMove>0)&&((*heroX)<(dynXM-SIZEX/2)))*mapMove=*mapMove-1;
+        }
+        // режим строительства
+        else if(gameMode==2){
+            buildDo(dynWorld, heroX, heroY, nextX, nextY, behindHero); // строительство
+        }
         DynamicToStatic(stWorld, *mapMove, dynYM, dynWorld);
     }
-
     return 0;
 }
 
 // ПЕРЕМЕЩЕНИЕ ГЕРОЯ - ВВЕРХ
 int heroGoUp(int *heroX,int *heroY, int dynXM, int dynYM,int **dynWorld, int stWorld[][SIZEY], int *behindHero,int *mapMove){
+    int nextX, nextY;
     if(*heroY>0){ // граница
-        // закрашиваем предыдущий блок
-        dynWorld[*heroX][*heroY]=*behindHero;
-        *heroY=*heroY-1;
-        //запоминаем цвет следующего блока
-        *behindHero=dynWorld[*heroX][*heroY];
-        //перемещаем героя (закрашиваем блок)
-        dynWorld[*heroX][*heroY]=HEROCOLOR;
+        nextX=*heroX;nextY=*heroY-1;
+        // обычный режим
+        if(gameMode==0){
+            heroMove(dynWorld, heroX, heroY, nextX, nextY, behindHero);
+        }
+        // режим копания
+        else if(gameMode==1){
+            digDo(dynWorld, heroX, heroY, nextX, nextY, behindHero);// блок за героем
+        }
+        // режим строительства
+        else if(gameMode==2){
+            buildDo(dynWorld, heroX, heroY, nextX, nextY, behindHero); // строительство
+        }
         DynamicToStatic(stWorld, *mapMove, dynYM, dynWorld);
     }
     return 0;
@@ -871,10 +902,8 @@ int heroGoUp(int *heroX,int *heroY, int dynXM, int dynYM,int **dynWorld, int stW
 // ПЕРЕМЕЩЕНИЕ ГЕРОЯ - ВНИЗ
 int heroGoDown(int *heroX,int *heroY, int dynXM, int dynYM,int **dynWorld, int stWorld[][SIZEY], int *behindHero,int *mapMove){
     int nextX, nextY;
-
     if(*heroY<dynYM-1){ // граница
-        nextX=*heroX;
-        nextY=*heroY+1;
+        nextX=*heroX;nextY=*heroY+1;
         // обычный режим
         if(gameMode==0){
             heroMove(dynWorld, heroX, heroY, nextX, nextY, behindHero);
@@ -882,6 +911,10 @@ int heroGoDown(int *heroX,int *heroY, int dynXM, int dynYM,int **dynWorld, int s
         // режим копания
         else if(gameMode==1){
             digDo(dynWorld, heroX, heroY, nextX, nextY, behindHero);// блок за героем
+        }
+        // режим строительства
+        else if(gameMode==2){
+            buildDo(dynWorld, heroX, heroY, nextX, nextY, behindHero); // строительство
         }
         DynamicToStatic(stWorld, *mapMove, dynYM, dynWorld);
     }
@@ -891,26 +924,70 @@ int heroGoDown(int *heroX,int *heroY, int dynXM, int dynYM,int **dynWorld, int s
 // Копать
 int digDo(int **dynWorld, int *heroX, int *heroY, int nextX, int nextY, int *behindHero){
     if(dynWorld[nextX][nextY]== BLOCKDIRT || // если земля
-       dynWorld[nextX][nextY]== BLOCKGRASS) // или трава
+       dynWorld[nextX][nextY]== BLOCKGRASS || // или трава
+       dynWorld[nextX][nextY]== 1 || // или снег
+       dynWorld[nextX][nextY]== BLOCKSAND || // или песок
+       dynWorld[nextX][nextY]== BLOCKTRUNK || // или ствол дерева
+       dynWorld[nextX][nextY]== BLOCKLEAF)  // или крона дерева
     {
         intInventory++;
         // старый блок становится пустым
         dynWorld[*heroX][*heroY]=BLOCKEMPTY;
-        // запоминаем цвет блока за героем
-        *behindHero=dynWorld[nextX][nextY];
         //перемещаем героя (закрашиваем блок)
         dynWorld[nextX][nextY]=HEROCOLOR;
         *heroX=nextX;
         *heroY=nextY;
     }
-    // если пустой блок(земля, ствол, крона дерева, кактус), просто перемещаемся
-    else if(dynWorld[nextX][nextY]==BLOCKEMPTY)
+    // если пустой блок, просто перемещаемся
+    else // if(dynWorld[nextX][nextY]==BLOCKEMPTY)
         heroMove(dynWorld,heroX,heroY,nextX,nextY,behindHero);
     return 0;
 }
 
-int heroMove(int **dynWorld, int *heroX, int *heroY, int nextX, int nextY, int *behindHero){
+// ------------------------- BUILD MODE ---------------------------
+int buildDo(int **dynWorld, int *heroX, int *heroY, int nextX, int nextY, int *behindHero){
+    if(intInventory>0){
+        // если следующий блок не пустой, а текущий пустой
+        // перемещаем и закрашиваем текущий
+        if(dynWorld[nextX][nextY]!= BLOCKEMPTY &&
+           *behindHero==BLOCKEMPTY){
+             // текущий блок закрашиваем ранее запомненным цветом
+            dynWorld[*heroX][*heroY]=BLOCKDIRT;
+            // запоминаем цвет следующего блока
+            *behindHero=dynWorld[nextX][nextY];
+            //перемещаем героя (закрашиваем блок)
+            dynWorld[nextX][nextY]=HEROCOLOR;
+            *heroX=nextX;
+            *heroY=nextY;
+        }
+        // если оба не пустые
+        else if(dynWorld[nextX][nextY]!= BLOCKEMPTY &&
+                *behindHero!=BLOCKEMPTY){
+            heroMove(dynWorld,heroX,heroY,nextX,nextY,behindHero);
+        }
+        // если следующий пустой, а текущий - нет, перемещаемся
+        else if(dynWorld[nextX][nextY]== BLOCKEMPTY &&
+                *behindHero!=BLOCKEMPTY){
+            heroMove(dynWorld,heroX,heroY,nextX,nextY,behindHero);
+        }
+        else {
+            intInventory--;
+            // старый блок - закрашиваем землей
+            dynWorld[*heroX][*heroY]=BLOCKDIRT;
+            //перемещаем героя (закрашиваем блок)
+            *behindHero=dynWorld[nextX][nextY];
+            dynWorld[nextX][nextY]=HEROCOLOR;
+            *heroX=nextX;
+            *heroY=nextY;
+        }
+    }
+    // если инвентарь пуст, просто перемещаем
+    else heroMove(dynWorld,heroX,heroY,nextX,nextY,behindHero);
 
+    return 0;
+}
+
+int heroMove(int **dynWorld, int *heroX, int *heroY, int nextX, int nextY, int *behindHero){
     // текущий блок закрашиваем ранее запомненным цветом
     dynWorld[*heroX][*heroY]=*behindHero;
     // запоминаем цвет следующего блока
@@ -919,6 +996,5 @@ int heroMove(int **dynWorld, int *heroX, int *heroY, int nextX, int nextY, int *
     dynWorld[nextX][nextY]=HEROCOLOR;
     *heroX=nextX;
     *heroY=nextY;
-
     return 0;
 }
