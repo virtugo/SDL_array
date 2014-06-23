@@ -30,6 +30,8 @@ int ClearMemory(int, int, int**); // очищаем память
 //перемещение героя
 int heroGoRight(int*,int,int,int,int**,int(*)[SIZEY],int*,int*);
 int heroGoLeft(int*,int,int,int,int**,int(*)[SIZEY],int*,int*);
+int heroGoUp(int*,int*,int,int,int**,int(*)[SIZEY],int*,int*);
+int heroGoDown(int*,int*,int,int,int**,int(*)[SIZEY],int*,int*);
 
 // PUBLIC VARIABLES
 char text1[10]="0"; // верхняя строка меню
@@ -196,29 +198,11 @@ int main( int argc, char* args[] )
                 }
                 // ВВЕРХ
                 else if(e.key.keysym.sym==SDLK_w){
-                    if(heroY>0){ // граница
-                        // закрашиваем предыдущий блок
-                        dynWorld[heroX][heroY]=behindHero;
-                        heroY--;
-                        //запоминаем цвет следующего блока
-                        behindHero=dynWorld[heroX][heroY];
-                        //перемещаем героя (закрашиваем блок)
-                        dynWorld[heroX][heroY]=HEROCOLOR;
-                        DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
-                    }
+                    heroGoUp(&heroX,&heroY,dynXM,dynYM,dynWorld,stWorld,&behindHero,&mapMove);
                 }
                 // ВНИЗ
                 else if(e.key.keysym.sym==SDLK_s){
-                    if(heroY<dynYM-1){ // граница
-                        // закрашиваем предыдущий блок
-                        dynWorld[heroX][heroY]=behindHero;
-                        heroY++;
-                        //запоминаем цвет следующего блока
-                        behindHero=dynWorld[heroX][heroY];
-                        //перемещаем героя (закрашиваем блок)
-                        dynWorld[heroX][heroY]=HEROCOLOR;
-                        DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
-                    }
+                    heroGoDown(&heroX,&heroY,dynXM,dynYM,dynWorld,stWorld,&behindHero,&mapMove);
                 }
                 else if(e.key.keysym.sym==SDLK_t){
                     intInventory++;
@@ -857,5 +841,35 @@ int heroGoLeft(int *heroX,int heroY, int dynXM, int dynYM,int **dynWorld, int st
         DynamicToStatic(stWorld, *mapMove, dynYM, dynWorld);
     }
 
+    return 0;
+}
+
+// ПЕРЕМЕЩЕНИЕ ГЕРОЯ - ВВЕРХ
+int heroGoUp(int *heroX,int *heroY, int dynXM, int dynYM,int **dynWorld, int stWorld[][SIZEY], int *behindHero,int *mapMove){
+    if(*heroY>0){ // граница
+        // закрашиваем предыдущий блок
+        dynWorld[*heroX][*heroY]=*behindHero;
+        *heroY=*heroY-1;
+        //запоминаем цвет следующего блока
+        *behindHero=dynWorld[*heroX][*heroY];
+        //перемещаем героя (закрашиваем блок)
+        dynWorld[*heroX][*heroY]=HEROCOLOR;
+        DynamicToStatic(stWorld, *mapMove, dynYM, dynWorld);
+    }
+    return 0;
+}
+
+// ПЕРЕМЕЩЕНИЕ ГЕРОЯ - ВНИЗ
+int heroGoDown(int *heroX,int *heroY, int dynXM, int dynYM,int **dynWorld, int stWorld[][SIZEY], int *behindHero,int *mapMove){
+    if(*heroY<dynYM-1){ // граница
+        // закрашиваем предыдущий блок
+        dynWorld[*heroX][*heroY]=*behindHero;
+        *heroY=*heroY+1;
+        //запоминаем цвет следующего блока
+        *behindHero=dynWorld[*heroX][*heroY];
+        //перемещаем героя (закрашиваем блок)
+        dynWorld[*heroX][*heroY]=HEROCOLOR;
+        DynamicToStatic(stWorld, *mapMove, dynYM, dynWorld);
+    }
     return 0;
 }
