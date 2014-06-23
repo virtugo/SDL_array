@@ -15,6 +15,10 @@
 #define MOUNTHEIGHT 15 // высота гор
 #define HEROCOLOR 8 // цвет героя
 // #define TREE_LEAF_COLOR 2 // цвет листвы
+// текст для второй строки меню
+#define MODEWALK "walk mode"
+#define MODEDIG "dig mode"
+#define MODEBUILD "build mode"
 
 int FillArray(int, int, int**, int*, int*, int*); // заполняем массив
 int PlusArray(int, int, int**, int, int*); // увеличиваем массив
@@ -23,7 +27,11 @@ int DrawScreen(int (*)[SIZEY]);
 int DrawBlock(int, int, int);
 int ClearMemory(int, int, int**); // очищаем память
 
-int textflag=1;
+// PUBLIC VARIABLES
+char text1[10]="0"; // верхняя строка меню
+int intInventory = 0;
+int gameMode = 0; // режим игры: ходить, копать, строить
+#define MODEMAX 1 // максимальный индекс режима игры (для удобства здесь)
 
 //Screen dimension constants
 const int SCREEN_WIDTH = 800;
@@ -149,6 +157,7 @@ int main( int argc, char* args[] )
                     FillArray(dynXM, dynYM, dynWorld, &heroX, &heroY, &borderHeight);
                     behindHero=3; // небо за героем
                     mapMove=0;
+                    intInventory=0;
                     DynamicToStatic(stWorld, mapMove, dynYM, dynWorld);
                 }
                 // увеличиваем массив справа
@@ -232,7 +241,16 @@ int main( int argc, char* args[] )
                     }
                 }
                 else if(e.key.keysym.sym==SDLK_t){
-                    textflag=!textflag;
+                    intInventory++;
+                    /*
+                    // меняем текстуру
+                    SDL_Color textColor = { 0, 0, 0 };
+                    gTextTexture1.loadFromRenderedText( text1, textColor );
+                    */
+                }
+                else if(e.key.keysym.sym==SDLK_1){
+                    if(gameMode<MODEMAX)gameMode++;
+                    else gameMode=0;
                 }
             }
         }
@@ -281,7 +299,7 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borde
                 for(j=(YM-1);j>y;j--){
                     dynWorld[i][j] = 6; // земля
                 }
-                dynWorld[i][y] = 2; // трава наверху
+                dynWorld[i][y] = 9; // трава наверху
                 // координата героя
                 if(i==SIZEX/2){
                     dynWorld[i][y-1] = HEROCOLOR; // цвет героя
@@ -293,8 +311,8 @@ int FillArray(int XM, int YM, int **dynWorld, int *heroX, int *heroY, int *borde
                     treeChance = rand() % 20;
                     if(treeChance==1){
                         //два коричневых и зеленые блоки
-                        dynWorld[i][y-1] = 6;
-                        dynWorld[i][y-2] = 6;
+                        dynWorld[i][y-1] = 10;
+                        dynWorld[i][y-2] = 10;
                         dynWorld[i][y-4] = 2;
                         dynWorld[i][y-3] = 2;
                         dynWorld[i-1][y-3] = 2;
@@ -414,7 +432,7 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
                         else if(biomType==2)
                             dynWorld[i][j] = 7; // песок
                     }
-                    if(biomType==0)dynWorld[i][y] = 2; // трава наверху
+                    if(biomType==0)dynWorld[i][y] = 9; // трава наверху
                     else if (biomType==1)dynWorld[i][y] = 1; // снег
                     else if (biomType==2)dynWorld[i][y] = 7; // песок
                     // генератор деревьев
@@ -424,14 +442,15 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
                             if((biomType==0)||
                                (biomType==1)){
                                 //два коричневых
-                                dynWorld[i][y-1] = 6;
-                                dynWorld[i][y-2] = 6;
+                                dynWorld[i][y-1] = 10;
+                                dynWorld[i][y-2] = 10;
                             }
                             // пустыня - кактусы
                             else if(biomType==2){
                                 dynWorld[i][y-1] = 2;
                                 dynWorld[i][y-2] = 2;
                             }
+                            // обычный биом - листья
                             if(biomType==0){
                                 //зеленые блоки
                                 dynWorld[i][y-4] = 2;
@@ -439,6 +458,7 @@ int PlusArray(int XM, int YM, int **dynWorld, int addArr, int *borderHeight)
                                 dynWorld[i-1][y-3] = 2;
                                 dynWorld[i+1][y-3] = 2;
                             }
+                            // снежный биом - снег на дереве
                             else if (biomType==1){
                                 dynWorld[i][y-4] = 1;
                                 dynWorld[i][y-3] = 1;
@@ -496,8 +516,14 @@ int DrawScreen(int stWorld[][SIZEY])
 
     // выводим текст
     //gTextTexture1.render( ( SCREEN_WIDTH - gTextTexture1.getWidth() ) / 2, ( SCREEN_HEIGHT - gTextTexture1.getHeight() ) / 2 );
+    itoa(intInventory, text1, 10);
+    SDL_Color textColor = { 0, 0, 0 };
+    gTextTexture1.loadFromRenderedText( text1, textColor );
     gTextTexture1.render(0,0);
-    if(textflag==1)gTextTexture2.render(0,25);
+    // вторая строка
+    if(gameMode==0)gTextTexture2.loadFromRenderedText( MODEWALK, textColor );
+    else if(gameMode==1)gTextTexture2.loadFromRenderedText( MODEDIG, textColor );
+    gTextTexture2.render(0,25);
 
     return 0;
 }
@@ -521,7 +547,7 @@ int DrawBlock(int blockType, int x1, int y1)
     // синий
     }else if(blockType==5){
         SDL_SetRenderDrawColor( gRenderer, 63, 72, 204, 0 );
-    // коричневый
+    // коричневый (темный)
     }else if(blockType==6){
         SDL_SetRenderDrawColor( gRenderer, 136, 0, 21, 0 );
     // желтый (пустыня)
@@ -531,8 +557,14 @@ int DrawBlock(int blockType, int x1, int y1)
     // лиловый (фиолетовый)
     }else if(blockType==8){
         SDL_SetRenderDrawColor( gRenderer, 163, 73, 164, 0 );
-    }
+    // светло-зеленый (трава)
+    }else if(blockType==9){
+        SDL_SetRenderDrawColor( gRenderer, 40, 215, 92, 0 );
+    // светло-коричневый (ствол дерева)
+    }else if(blockType==10){
+        SDL_SetRenderDrawColor( gRenderer, 185, 122, 87, 0 );
     // черный blockType==0
+    }
     else SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0 );
 
     SDL_RenderFillRect( gRenderer, &fillRect );
@@ -620,12 +652,7 @@ bool loadMedia()
 	bool success = true;
 	//Open the font
 	gFont = TTF_OpenFont( "arial.ttf", 28 );
-    //Render text
-    SDL_Color textColor = { 0, 0, 0 };
-    // подгрузка текста
-    gTextTexture1.loadFromRenderedText( "PRESS t", textColor );
-    gTextTexture2.loadFromRenderedText( "TEST MESSAGE 2", textColor );
-	//Nothing to load
+
 	return success;
 }
 
